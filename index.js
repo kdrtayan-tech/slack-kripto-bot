@@ -2,11 +2,12 @@ console.log("Merhaba, bu proje Slack kripto botu için hazırlanıyor.");
 const express = require("express");
 const app = express();
 
+const PORT = process.env.PORT || 3000;
+
 app.get("/", (req, res) => {
-  res.send("Slack kripto bot çalışıyor.");
+  res.send("Slack Crypto Bot Çalışıyor!");
 });
 
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server çalışıyor → Port: ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });
