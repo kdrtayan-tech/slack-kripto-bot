@@ -7,6 +7,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 // --- GOOGLE AUTH ---
+console.log("🔑 GOOGLE_CREDS okunuyor...");
 const creds = JSON.parse(process.env.GOOGLE_CREDS);
 
 const auth = new google.auth.GoogleAuth({
@@ -15,55 +16,61 @@ const auth = new google.auth.GoogleAuth({
 });
 
 app.post("/slack/command", async (req, res) => {
-  try {
-    console.log("=== Slash command geldi ===");
-    console.log(req.body);
+  console.log("====================================");
+  console.log("🚀 Slack komutu endpoint'e ulaştı");
+  console.log("Request Body:", req.body);
 
+  try {
     const walletAddress = req.body.text;
     const user = req.body.user_name || "unknown";
     const timestamp = new Date().toISOString();
 
-    console.log("Wallet:", walletAddress);
-    console.log("User:", user);
-    console.log("Timestamp:", timestamp);
+    console.log("➡️ Wallet:", walletAddress);
+    console.log("➡️ User:", user);
+    console.log("➡️ Timestamp:", timestamp);
 
-    // Google Sheets bağlan
-    console.log("Google Auth başlıyor...");
+    // Google Sheets Bağlantısı
+    console.log("🔐 Google Auth client alınıyor...");
     const client = await auth.getClient();
     const sheets = google.sheets({ version: "v4", auth: client });
 
     const sheetId = process.env.SHEET_ID;
     const sheetName = process.env.SHEET_NAME;
 
-    console.log("Sheets appendRow'a gidiyor...");
+    console.log("📄 Sheet ID:", sheetId);
+    console.log("📄 Sheet Name:", sheetName);
 
-    // --- KRİTİK NOKTA: BURAYA GELİYOR MU GÖRECEĞİZ ---
-    const response = await sheets.spreadsheets.values.append({
+    console.log("📌 Google Sheets'e yazma işlemi başlıyor...");
+
+    // ASIL KRİTİK NOKTA — append işlemi
+    const result = await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
-      range: `${sheetName}!A1:C1`,
+      range: `${sheetName}!A:C`,   // <-- Burası düzeltilmiş HALİ
       valueInputOption: "USER_ENTERED",
-      resource: {
+      requestBody: {
         values: [[walletAddress, user, timestamp]],
       },
     });
 
-    console.log("Sheets appendRow OK:", response.status);
+    console.log("✅ Google Sheets append SUCCESS");
+    console.log("Google Response:", result.data);
 
-    // Slack'e mesaj dön
-    res.json({
+    // Slack'e başarı mesajı
+    return res.json({
       response_type: "in_channel",
       text: `✅ ${user}, cüzdan adresin kaydedildi:\n\`${walletAddress}\``,
     });
 
   } catch (err) {
-    console.error("HATA OLDU:", err);
+    console.log("❌ Google Sheets Append FAILED!");
+    console.error(err);
 
-    // Slack'e hata mesajı
-    res.json({
+    return res.json({
       response_type: "ephemeral",
-      text: `❌ Hata: ${err.message}`,
+      text: `❌ Hata oluştu: ${err.message}`,
     });
   }
 });
 
-app.listen(10000, () => console.log("Bot 10000 portunda çalışıyor"));
+// Sunucu
+app.listen(10000, () => console.log("🚀 Bot 10000 portunda çalışıyor"));
