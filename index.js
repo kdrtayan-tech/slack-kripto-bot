@@ -1,43 +1,49 @@
-const { App } = require("@slack/bolt");
-require("dotenv").config();
+const express = require("express");
+const app = express();
 
-// Slack uygulamasını başlat
-const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET,
-  socketMode: false,
-  appToken: undefined
+// Slack, slash command verisini form-data (x-www-form-urlencoded) olarak gönderir:
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+// Basit health check
+app.get("/", (req, res) => {
+  res.send("Slack kripto bot ayakta ✅");
 });
 
-// Slash command: /kripto_teyit
-app.command("/kripto_teyit", async ({ command, ack, respond }) => {
-  await ack();
+// Slash command endpointi
+app.post("/slack/events", (req, res) => {
+  console.log("Gelen slash command:", req.body);
 
-  const wallet = command.text?.trim();
+  const { command, text, user_name } = req.body;
+
+  // Yanlış komut gelirse
+  if (command !== "/kripto_teyit") {
+    return res.json({
+      response_type: "ephemeral",
+      text: "Bu endpoint sadece `/kripto_teyit` için ayarlandı."
+    });
+  }
+
+  const wallet = (text || "").trim();
 
   if (!wallet) {
-    return respond("❗ Lütfen bir cüzdan adresi girin. Örnek: `/kripto_teyit 0xABC123`");
+    return res.json({
+      response_type: "ephemeral",
+      text:
+        "❗ Cüzdan adresi girmediniz.\n" +
+        "Lütfen şu formatta kullanın:\n`/kripto_teyit 0xAdresiniz`"
+    });
   }
 
-  // Basit örnek doğrulama (gerçekte burada API kontrolü yapılacak)
-  if (wallet.length < 20) {
-    return respond(`❌ **Geçersiz cüzdan adresi**: \`${wallet}\``);
-  }
-
-  return respond(`✅ Cüzdan adresi geçerli görünüyor: \`${wallet}\``);
+  // Şimdilik format kontrolü yapmıyoruz (C seçmiştin)
+  return res.json({
+    response_type: "ephemeral", // sadece komutu yazan kişi görür
+    text: `✅ ${user_name}, cüzdan adresin şudur:\n\`${wallet}\``
+  });
 });
 
-// Express sunucusunu aç
-const express = require("express");
-const server = express();
-
-server.get("/", (req, res) => {
-  res.send("Slack Kripto Bot Çalışıyor!");
-});
-
-server.listen(process.env.PORT || 3000, async () => {
-  console.log("Server started");
-
-  await app.start();
-  console.log("Slack bot aktif!");
+// Render portu
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Sunucu ${PORT} portunda dinliyor 🚀`);
 });
